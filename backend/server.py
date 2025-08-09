@@ -456,7 +456,7 @@ async def create_appointment(appointment_data: dict, current_user: dict = Depend
 @api_router.get("/appointments/my")
 async def get_my_appointments(current_user: dict = Depends(get_current_user)):
     appointments = await db.appointments.find({"patient_id": current_user["id"]}).to_list(1000)
-    return appointments
+    return [serialize_doc(doc) for doc in appointments]
 
 # Medical Records Routes
 @api_router.get("/medical-records/my")
