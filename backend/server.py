@@ -172,6 +172,21 @@ class MedicalRecord(BaseModel):
     is_confidential: bool = True
 
 # Utility Functions
+def serialize_doc(doc):
+    """Convert MongoDB document to JSON serializable format"""
+    if doc is None:
+        return None
+    if isinstance(doc, list):
+        return [serialize_doc(item) for item in doc]
+    if isinstance(doc, dict):
+        result = {}
+        for key, value in doc.items():
+            if key == "_id":
+                continue  # Skip MongoDB _id field
+            result[key] = serialize_doc(value)
+        return result
+    return doc
+
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
