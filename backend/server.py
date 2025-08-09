@@ -31,6 +31,19 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'unicare-secret-key-2025')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
+# Twilio Configuration
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')  # Will be set by user
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')    # Will be set by user
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER') # Will be set by user
+
+# Initialize Twilio client if credentials are available
+twilio_client = None
+if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+    try:
+        twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    except Exception as e:
+        print(f"Twilio initialization failed: {e}")
+
 # Create the main app
 app = FastAPI(title="Unicare Polyclinic API", version="1.0.0")
 
