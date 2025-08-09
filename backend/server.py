@@ -94,6 +94,102 @@ class Doctor(BaseModel):
     schedule: Dict[str, List[str]] = {}  # {"2025-03-20": ["09:00", "09:30", "10:00"]}
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+class DoctorScheduleTemplate(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    doctor_id: str
+    template_name: str
+    schedule_type: str = "weekly"  # daily, weekly, monthly
+    days_of_week: List[int] = []  # [1,2,3,4,5] for Mon-Fri, 0=Sunday, 6=Saturday
+    start_time: str  # "09:00"
+    end_time: str    # "17:00"
+    slot_duration: int = 30  # minutes
+    break_times: List[Dict[str, str]] = []  # [{"start": "13:00", "end": "14:00"}]
+    is_active: bool = True
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class DoctorLeave(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    doctor_id: str
+    leave_type: str = "sick"  # sick, vacation, emergency, holiday
+    start_date: str
+    end_date: str
+    reason: Optional[str] = None
+    status: str = "approved"  # pending, approved, rejected
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Holiday(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    date: str
+    is_working_day: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class InventoryItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    category: str  # medicine, lab_equipment, lab_supply
+    current_stock: int
+    minimum_stock: int
+    unit: str  # pieces, ml, grams, etc.
+    cost_per_unit: float
+    supplier: Optional[str] = None
+    expiry_date: Optional[str] = None
+    location: Optional[str] = None  # pharmacy, lab_room_1, etc.
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class StockTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    inventory_item_id: str
+    transaction_type: str  # purchase, usage, adjustment, expired
+    quantity: int
+    cost_per_unit: Optional[float] = None
+    total_cost: Optional[float] = None
+    notes: Optional[str] = None
+    performed_by: str  # admin user_id
+    transaction_date: datetime = Field(default_factory=datetime.utcnow)
+
+class Campaign(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str
+    campaign_type: str = "discount"  # discount, buy_one_get_one, festive_offer
+    discount_percentage: Optional[float] = None
+    applicable_to: str = "medicines"  # medicines, lab_tests, all
+    applicable_items: List[str] = []  # specific item IDs, empty means all
+    start_date: str
+    end_date: str
+    is_active: bool = True
+    usage_limit: Optional[int] = None  # max uses per campaign
+    usage_count: int = 0
+    created_by: str  # admin user_id
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Notification(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    title: str
+    message: str
+    notification_type: str = "appointment"  # appointment, inventory, campaign, system
+    is_read: bool = False
+    data: Optional[Dict[str, Any]] = {}  # additional data like appointment_id
+    scheduled_for: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Feedback(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    patient_id: str
+    doctor_id: str
+    appointment_id: str
+    rating: int  # 1-5 stars
+    comment: Optional[str] = None
+    feedback_categories: Dict[str, int] = {}  # {"professionalism": 5, "waiting_time": 3}
+    is_anonymous: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class Medicine(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
