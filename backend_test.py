@@ -758,6 +758,13 @@ def main():
     tester.test_admin_endpoints()
     tester.test_user_profile()
     
+    # Test comprehensive admin features
+    tester.test_doctor_scheduling_system()
+    tester.test_inventory_management_system()
+    tester.test_campaign_management_system()
+    tester.test_notification_system()
+    tester.test_feedback_system()
+    
     # Print final results
     print("\n" + "=" * 50)
     print(f"📊 FINAL RESULTS")
