@@ -1070,6 +1070,145 @@ async def get_daily_bookings(date: str = None, admin_user: dict = Depends(requir
     
     return enriched_appointments
 
+# Patient Document Upload Routes
+@api_router.post("/admin/patients/{patient_id}/upload-document")
+async def upload_patient_document(
+    patient_id: str,
+    document_type: str,
+    description: str = None,
+    appointment_id: str = None,
+    file: UploadFile = File(...),
+    admin_user: dict = Depends(require_admin)
+):
+    """Upload a document for a patient (OP card, lab results, ECG, etc.)"""
+    
+    # Validate patient exists
+    patient = await db.users.find_one({"id": patient_id})
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # Validate document type
+    allowed_types = ["opcard", "lab_result", "ecg_result", "prescription", "medical_report", "xray", "scan"]
+    if document_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"Invalid document type. Allowed: {', '.join(allowed_types)}")
+    
+    # Validate file type
+    allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
+    file_extension = Path(file.filename).suffix.lower()
+    if file_extension not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}")
+    
+    # Create unique filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    unique_filename = f"{patient_id}_{document_type}_{timestamp}{file_extension}"
+    file_path = UPLOADS_DIR / "patient_documents" / unique_filename
+    
+    try:
+        # Save file
+        async with aiofiles.open(file_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+        
+        # Create database record
+        document = PatientDocument(
+            patient_id=patient_id,
+            document_type=document_type,
+            document_name=file.filename,
+            file_path=f"/uploads/patient_documents/{unique_filename}",
+            file_size=len(content),
+            mime_type=file.content_type,
+            uploaded_by=admin_user["id"],
+            description=description,
+            appointment_id=appointment_id
+        )
+        
+        await db.patient_documents.insert_one(document.dict())
+        
+        return {
+            "message": "Document uploaded successfully",
+            "document_id": document.id,
+            "file_url": document.file_path
+        }
+        
+    except Exception as e:
+        # Clean up file if database insert fails
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Error uploading document: {str(e)}")
+
+@api_router.get("/admin/patients/{patient_id}/documents")
+async def get_patient_documents(patient_id: str, admin_user: dict = Depends(require_admin)):
+    """Get all documents for a patient"""
+    documents = await db.patient_documents.find({"patient_id": patient_id}).to_list(1000)
+    return [serialize_doc(doc) for doc in documents]
+
+@api_router.get("/patients/{patient_id}/documents")
+async def get_my_documents(patient_id: str, current_user: dict = Depends(get_current_user)):
+    """Allow patients to view their own documents"""
+    # Verify patient is accessing their own documents or is admin
+    if current_user["id"] != patient_id and current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    documents = await db.patient_documents.find({"patient_id": patient_id}).to_list(1000)
+    return [serialize_doc(doc) for doc in documents]
+
+@api_router.delete("/admin/patients/{patient_id}/documents/{document_id}")
+async def delete_patient_document(
+    patient_id: str,
+    document_id: str,
+    admin_user: dict = Depends(require_admin)
+):
+    """Delete a patient document"""
+    document = await db.patient_documents.find_one({"id": document_id, "patient_id": patient_id})
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Delete file from disk
+    try:
+        file_path = Path("/app/backend" + document["file_path"])
+        if file_path.exists():
+            file_path.unlink()
+    except Exception as e:
+        print(f"Warning: Could not delete file {document['file_path']}: {e}")
+    
+    # Delete from database
+    await db.patient_documents.delete_one({"id": document_id})
+    
+    return {"message": "Document deleted successfully"}
+
+# Enhanced Doctor Management Routes
+@api_router.post("/admin/doctors")
+async def create_doctor(doctor_data: dict, admin_user: dict = Depends(require_admin)):
+    """Create a new doctor"""
+    doctor = Doctor(**doctor_data)
+    await db.doctors.insert_one(doctor.dict())
+    return {"message": "Doctor created successfully", "doctor_id": doctor.id}
+
+@api_router.put("/admin/doctors/{doctor_id}")
+async def update_doctor(doctor_id: str, doctor_data: dict, admin_user: dict = Depends(require_admin)):
+    """Update doctor information"""
+    doctor = await db.doctors.find_one({"id": doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    
+    await db.doctors.update_one({"id": doctor_id}, {"$set": doctor_data})
+    return {"message": "Doctor updated successfully"}
+
+@api_router.delete("/admin/doctors/{doctor_id}")
+async def delete_doctor(doctor_id: str, admin_user: dict = Depends(require_admin)):
+    """Delete a doctor"""
+    doctor = await db.doctors.find_one({"id": doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    
+    # Check if doctor has any appointments
+    appointments = await db.appointments.find({"doctor_id": doctor_id}).to_list(1)
+    if appointments:
+        raise HTTPException(status_code=400, detail="Cannot delete doctor with existing appointments")
+    
+    await db.doctors.delete_one({"id": doctor_id})
+    return {"message": "Doctor deleted successfully"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
