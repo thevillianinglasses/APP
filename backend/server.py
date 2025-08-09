@@ -466,7 +466,7 @@ async def get_my_medical_records(current_user: dict = Depends(get_current_user))
         raise HTTPException(status_code=403, detail="Medical record access not approved by admin")
     
     records = await db.medical_records.find({"patient_id": current_user["id"]}).to_list(1000)
-    return records
+    return [serialize_doc(doc) for doc in records]
 
 # Admin Routes
 @api_router.get("/admin/patients")
