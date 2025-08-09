@@ -173,8 +173,30 @@ const ComprehensiveAdminDashboard = () => {
 
   const createScheduleTemplate = async () => {
     try {
-      await axios.post(`${API}/admin/doctor-schedule-template`, newScheduleTemplate);
+      const response = await axios.post(`${API}/admin/doctor-schedule-template`, newScheduleTemplate);
       alert('Schedule template created successfully!');
+      
+      // Automatically generate schedule for the next 30 days
+      if (newScheduleTemplate.doctor_id) {
+        try {
+          const startDate = new Date();
+          const endDate = new Date();
+          endDate.setDate(startDate.getDate() + 30);
+          
+          await axios.post(`${API}/admin/generate-doctor-schedule`, {
+            doctor_id: newScheduleTemplate.doctor_id,
+            template_id: response.data.template_id || 'new-template',
+            start_date: startDate.toISOString().split('T')[0],
+            end_date: endDate.toISOString().split('T')[0]
+          });
+          
+          alert('Doctor schedule generated for next 30 days! Patients can now book appointments.');
+        } catch (scheduleError) {
+          console.error('Schedule generation error:', scheduleError);
+          alert('Template created but automatic schedule generation failed. Please generate manually.');
+        }
+      }
+      
       setScheduleModal(false);
       setNewScheduleTemplate({
         doctor_id: '',
