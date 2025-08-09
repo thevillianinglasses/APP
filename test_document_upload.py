@@ -25,11 +25,15 @@ def test_document_upload():
     print("✅ Admin login successful")
     
     # Create a test patient first
+    import time
+    timestamp = str(int(time.time()))
+    test_email = f"test_patient_doc_{timestamp}@test.com"
+    
     print("👤 Creating test patient...")
     patient_response = requests.post(f"{base_url}/auth/register", json={
-        "email": "test_patient_doc@test.com",
-        "phone": "+1234567890",
-        "full_name": "Test Patient for Documents",
+        "email": test_email,
+        "phone": f"+123456{timestamp[-4:]}",
+        "full_name": f"Test Patient for Documents {timestamp}",
         "password": "TestPass123!",
         "address": "123 Test Street",
         "date_of_birth": "1990-01-01"
