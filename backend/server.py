@@ -1081,6 +1081,29 @@ async def startup_event():
             "password_hash": hash_password("admin-007")
         })
         logger.info("Admin user created with email: admin@unicarepolyclinic.com")
+    
+    # Start background tasks
+    asyncio.create_task(notification_scheduler())
+    logger.info("Background notification scheduler started")
+
+async def notification_scheduler():
+    """Background scheduler for notifications"""
+    while True:
+        try:
+            # Process scheduled notifications every minute
+            await process_scheduled_notifications()
+            
+            # Check if it's time for daily admin reminder (every day at 8:00 AM)
+            current_time = datetime.utcnow()
+            if current_time.hour == 8 and current_time.minute == 0:
+                await create_admin_daily_reminder()
+            
+            # Wait for 1 minute before next check
+            await asyncio.sleep(60)
+            
+        except Exception as e:
+            logger.error(f"Error in notification scheduler: {e}")
+            await asyncio.sleep(60)  # Wait before retrying
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
