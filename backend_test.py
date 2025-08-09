@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 class UnicareAPITester:
-    def __init__(self, base_url="https://2c13db7a-cf26-46fe-aec9-8fa2099ab54a.preview.emergentagent.com"):
+    def __init__(self, base_url="https://634fec4b-409c-4c75-b58c-fb21cbd6d0ba.preview.emergentagent.com"):
         self.base_url = f"{base_url}/api"
         self.token = None
         self.admin_token = None
