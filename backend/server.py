@@ -350,6 +350,125 @@ async def send_phone_otp(phone: str, otp: str) -> bool:
         print(f"Phone OTP error: {e}")
         return False
 
+async def send_sms_notification(phone: str, message: str) -> bool:
+    """Send SMS notification using Twilio"""
+    try:
+        if not twilio_client or not TWILIO_PHONE_NUMBER:
+            print(f"SMS MOCK - To {phone}: {message}")
+            return True
+        
+        message = twilio_client.messages.create(
+            body=message,
+            from_=TWILIO_PHONE_NUMBER,
+            to=phone
+        )
+        print(f"SMS sent successfully: {message.sid}")
+        return True
+    except Exception as e:
+        print(f"SMS sending failed: {e}")
+        return False
+
+async def schedule_appointment_notifications(appointment_id: str):
+    """Schedule notifications for an appointment"""
+    try:
+        appointment = await db.appointments.find_one({"id": appointment_id})
+        if not appointment:
+            return
+        
+        patient = await db.users.find_one({"id": appointment["patient_id"]})
+        if not patient:
+            return
+        
+        # Parse appointment datetime
+        appointment_datetime = datetime.strptime(
+            f"{appointment['appointment_date']} {appointment['appointment_time']}", 
+            "%Y-%m-%d %H:%M"
+        )
+        
+        # Schedule 1-hour before SMS notification
+        sms_time = appointment_datetime - timedelta(hours=1)
+        
+        if sms_time > datetime.utcnow():
+            # Create notification record
+            notification = Notification(
+                user_id=patient["id"],
+                title="Appointment Reminder",
+                message=f"Your appointment is in 1 hour at {appointment['appointment_time']}",
+                notification_type="appointment",
+                scheduled_for=sms_time,
+                data={"appointment_id": appointment_id, "type": "sms_reminder"}
+            )
+            await db.notifications.insert_one(notification.dict())
+        
+        # Create in-app notifications for 2 hours and 10 minutes before
+        for hours, minutes in [(2, 0), (0, 10)]:
+            notification_time = appointment_datetime - timedelta(hours=hours, minutes=minutes)
+            if notification_time > datetime.utcnow():
+                notification = Notification(
+                    user_id=patient["id"],
+                    title="Appointment Reminder" if hours > 0 else "Appointment Starting Soon",
+                    message=f"Your appointment is {'in 2 hours' if hours > 0 else 'in 10 minutes'}",
+                    notification_type="appointment",
+                    scheduled_for=notification_time,
+                    data={"appointment_id": appointment_id, "type": "in_app_reminder"}
+                )
+                await db.notifications.insert_one(notification.dict())
+        
+    except Exception as e:
+        print(f"Error scheduling notifications: {e}")
+
+async def process_scheduled_notifications():
+    """Background task to process scheduled notifications"""
+    try:
+        current_time = datetime.utcnow()
+        
+        # Find notifications that are due
+        due_notifications = await db.notifications.find({
+            "scheduled_for": {"$lte": current_time},
+            "sent_at": None
+        }).to_list(100)
+        
+        for notification in due_notifications:
+            try:
+                # Send SMS if it's an SMS notification
+                if notification.get("data", {}).get("type") == "sms_reminder":
+                    patient = await db.users.find_one({"id": notification["user_id"]})
+                    if patient and patient.get("phone"):
+                        await send_sms_notification(patient["phone"], notification["message"])
+                
+                # Mark as sent
+                await db.notifications.update_one(
+                    {"id": notification["id"]},
+                    {"$set": {"sent_at": current_time}}
+                )
+                
+            except Exception as e:
+                print(f"Error processing notification {notification['id']}: {e}")
+                
+    except Exception as e:
+        print(f"Error in process_scheduled_notifications: {e}")
+
+async def create_admin_daily_reminder():
+    """Create daily booking reminder for admin"""
+    try:
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        appointments = await db.appointments.find({"appointment_date": today}).to_list(1000)
+        
+        if appointments:
+            admin_users = await db.users.find({"role": "admin"}).to_list(10)
+            for admin in admin_users:
+                notification = Notification(
+                    user_id=admin["id"],
+                    title="Daily Booking Reminder",
+                    message=f"You have {len(appointments)} appointments scheduled for today",
+                    notification_type="system",
+                    data={"appointment_count": len(appointments), "date": today}
+                )
+                await db.notifications.insert_one(notification.dict())
+                
+    except Exception as e:
+        print(f"Error creating admin daily reminder: {e}")
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
