@@ -262,6 +262,15 @@ async def require_admin(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
+# Basic Routes
+@api_router.get("/")
+async def root():
+    return {"message": "Unicare Polyclinic API is running", "status": "success"}
+
+@api_router.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow()}
+
 # Authentication Routes
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
