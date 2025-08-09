@@ -406,7 +406,7 @@ async def update_doctor_status(doctor_id: str, status_data: dict, admin_user: di
 @api_router.get("/medicines")
 async def get_medicines():
     medicines = await db.medicines.find().to_list(1000)
-    return medicines
+    return [serialize_doc(doc) for doc in medicines]
 
 @api_router.post("/medicines/order")
 async def create_medicine_order(order_data: dict, current_user: dict = Depends(get_current_user)):
