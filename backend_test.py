@@ -907,6 +907,11 @@ def main():
     tester.test_notification_system()
     tester.test_feedback_system()
     
+    # Test enhanced admin features
+    tester.test_enhanced_doctor_management()
+    tester.test_patient_document_upload_system()
+    tester.test_health_package_creation()
+    
     # Print final results
     print("\n" + "=" * 50)
     print(f"📊 FINAL RESULTS")
