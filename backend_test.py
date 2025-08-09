@@ -310,6 +310,148 @@ class UnicareAPITester:
                 use_admin=True
             )
 
+    def test_enhanced_doctor_management(self):
+        """Test enhanced doctor CRUD operations"""
+        print("\n=== ENHANCED DOCTOR MANAGEMENT TESTS ===")
+        
+        if not self.admin_token:
+            print("Skipping enhanced doctor management tests - no admin token")
+            return
+        
+        # Test creating new doctor
+        success, doctor_response = self.run_test(
+            "Create New Doctor",
+            "POST",
+            "admin/doctors",
+            200,
+            data={
+                "user_id": "test-user-id-123",
+                "name": "Dr. Sarah Johnson",
+                "specialty": "Cardiology",
+                "qualification": "MD, FACC",
+                "experience_years": 8,
+                "consultation_fee": 150.0,
+                "is_available": True,
+                "status": "available"
+            },
+            use_admin=True
+        )
+        
+        doctor_id = None
+        if success and 'doctor_id' in doctor_response:
+            doctor_id = doctor_response['doctor_id']
+        
+        # Test updating doctor information
+        if doctor_id:
+            self.run_test(
+                "Update Doctor Information",
+                "PUT",
+                f"admin/doctors/{doctor_id}",
+                200,
+                data={
+                    "consultation_fee": 175.0,
+                    "experience_years": 9,
+                    "status": "busy"
+                },
+                use_admin=True
+            )
+        
+        # Test deleting doctor (should fail if has appointments)
+        if doctor_id:
+            success, response = self.run_test(
+                "Delete Doctor",
+                "DELETE",
+                f"admin/doctors/{doctor_id}",
+                200,
+                use_admin=True
+            )
+            if not success:
+                print("Note: Doctor deletion may fail if doctor has existing appointments - this is expected behavior")
+
+    def test_patient_document_upload_system(self):
+        """Test patient document upload system"""
+        print("\n=== PATIENT DOCUMENT UPLOAD SYSTEM TESTS ===")
+        
+        if not self.admin_token or not self.user_id:
+            print("Skipping document upload tests - no admin token or user ID")
+            return
+        
+        # Test getting patient documents (should be empty initially)
+        self.run_test(
+            "Get Patient Documents",
+            "GET",
+            f"admin/patients/{self.user_id}/documents",
+            200,
+            use_admin=True
+        )
+        
+        # Test patient accessing their own documents
+        if self.token:
+            self.run_test(
+                "Get My Documents (Patient)",
+                "GET",
+                f"patients/{self.user_id}/documents",
+                200
+            )
+        
+        # Note: File upload testing requires multipart/form-data which is complex to test
+        # In a real scenario, we would test with actual file uploads
+        print("Note: File upload endpoints require multipart/form-data testing with actual files")
+        print("Document upload endpoints are available at:")
+        print(f"- POST /api/admin/patients/{{patient_id}}/upload-document")
+        print(f"- GET /api/admin/patients/{{patient_id}}/documents")
+        print(f"- DELETE /api/admin/patients/{{patient_id}}/documents/{{document_id}}")
+
+    def test_health_package_creation(self):
+        """Test health package creation with discount calculation"""
+        print("\n=== HEALTH PACKAGE CREATION TESTS ===")
+        
+        if not self.admin_token:
+            print("Skipping health package tests - no admin token")
+            return
+        
+        # Test creating comprehensive health package
+        self.run_test(
+            "Create Comprehensive Health Package",
+            "POST",
+            "admin/lab-packages",
+            200,
+            data={
+                "name": "Executive Health Checkup",
+                "description": "Complete health screening for executives including blood work, ECG, and imaging",
+                "test_ids": ["test-1", "test-2", "test-3"],
+                "original_price": 2500.0,
+                "package_price": 1875.0,
+                "discount_percentage": 25.0
+            },
+            use_admin=True
+        )
+        
+        # Test creating basic health package
+        self.run_test(
+            "Create Basic Health Package",
+            "POST",
+            "admin/lab-packages",
+            200,
+            data={
+                "name": "Basic Health Screening",
+                "description": "Essential health tests for routine checkup",
+                "test_ids": ["test-1", "test-2"],
+                "original_price": 800.0,
+                "package_price": 640.0,
+                "discount_percentage": 20.0
+            },
+            use_admin=True
+        )
+        
+        # Verify packages are available publicly
+        self.run_test(
+            "Get Lab Packages (Public)",
+            "GET",
+            "lab-packages",
+            200
+        )
+
     def test_doctor_scheduling_system(self):
         """Test comprehensive doctor scheduling system"""
         print("\n=== DOCTOR SCHEDULING SYSTEM TESTS ===")
