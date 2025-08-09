@@ -3,6 +3,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import axios from 'axios';
 import './App.css';
 
+// Import components
+import DoctorsPage from './components/DoctorsPage';
+import MedicinesPage from './components/MedicinesPage';
+import LabTestsPage from './components/LabTestsPage';
+import AppointmentsPage from './components/AppointmentsPage';
+import MedicalRecordsPage from './components/MedicalRecordsPage';
+import ProfilePage from './components/ProfilePage';
+import AdminDashboard from './components/AdminDashboard';
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
