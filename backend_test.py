@@ -310,6 +310,418 @@ class UnicareAPITester:
                 use_admin=True
             )
 
+    def test_doctor_scheduling_system(self):
+        """Test comprehensive doctor scheduling system"""
+        print("\n=== DOCTOR SCHEDULING SYSTEM TESTS ===")
+        
+        if not self.admin_token:
+            print("Skipping doctor scheduling tests - no admin token")
+            return
+        
+        # First, get doctors to use for scheduling
+        success, doctors = self.run_test("Get Doctors for Scheduling", "GET", "doctors", 200)
+        if not success or not doctors:
+            print("No doctors found, creating test scenario")
+            return
+            
+        doctor_id = doctors[0]['id']
+        
+        # Test creating doctor schedule template
+        success, template_response = self.run_test(
+            "Create Doctor Schedule Template",
+            "POST",
+            "admin/doctor-schedule-template",
+            200,
+            data={
+                "doctor_id": doctor_id,
+                "template_name": "Weekday Morning Schedule",
+                "schedule_type": "weekly",
+                "days_of_week": [1, 2, 3, 4, 5],  # Mon-Fri
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "slot_duration": 30,
+                "break_times": [{"start": "13:00", "end": "14:00"}],
+                "is_active": True
+            },
+            use_admin=True
+        )
+        
+        template_id = None
+        if success and 'template_id' in template_response:
+            template_id = template_response['template_id']
+        
+        # Test getting doctor schedule templates
+        self.run_test(
+            "Get Doctor Schedule Templates",
+            "GET",
+            f"admin/doctor-schedule-templates/{doctor_id}",
+            200,
+            use_admin=True
+        )
+        
+        # Test updating schedule template
+        if template_id:
+            self.run_test(
+                "Update Schedule Template",
+                "PUT",
+                f"admin/doctor-schedule-template/{template_id}",
+                200,
+                data={"slot_duration": 45},
+                use_admin=True
+            )
+        
+        # Test generating doctor schedule
+        if template_id:
+            self.run_test(
+                "Generate Doctor Schedule",
+                "POST",
+                "admin/generate-doctor-schedule",
+                200,
+                data={
+                    "doctor_id": doctor_id,
+                    "template_id": template_id,
+                    "start_date": "2025-01-20",
+                    "end_date": "2025-01-26"
+                },
+                use_admin=True
+            )
+        
+        # Test creating doctor leave
+        success, leave_response = self.run_test(
+            "Create Doctor Leave",
+            "POST",
+            "admin/doctor-leave",
+            200,
+            data={
+                "doctor_id": doctor_id,
+                "leave_type": "vacation",
+                "start_date": "2025-02-01",
+                "end_date": "2025-02-03",
+                "reason": "Annual vacation",
+                "status": "approved"
+            },
+            use_admin=True
+        )
+        
+        # Test getting doctor leaves
+        self.run_test(
+            "Get Doctor Leaves",
+            "GET",
+            f"admin/doctor-leaves/{doctor_id}",
+            200,
+            use_admin=True
+        )
+        
+        # Test creating holiday
+        self.run_test(
+            "Create Holiday",
+            "POST",
+            "admin/holidays",
+            200,
+            data={
+                "name": "Test Holiday",
+                "date": "2025-12-25",
+                "is_working_day": False
+            },
+            use_admin=True
+        )
+        
+        # Test getting holidays
+        self.run_test(
+            "Get Holidays",
+            "GET",
+            "admin/holidays",
+            200,
+            use_admin=True
+        )
+
+    def test_inventory_management_system(self):
+        """Test comprehensive inventory management system"""
+        print("\n=== INVENTORY MANAGEMENT SYSTEM TESTS ===")
+        
+        if not self.admin_token:
+            print("Skipping inventory tests - no admin token")
+            return
+        
+        # Test creating inventory item
+        success, item_response = self.run_test(
+            "Create Inventory Item",
+            "POST",
+            "admin/inventory",
+            200,
+            data={
+                "name": "Paracetamol 500mg",
+                "category": "medicine",
+                "current_stock": 100,
+                "minimum_stock": 20,
+                "unit": "tablets",
+                "cost_per_unit": 2.50,
+                "supplier": "MedSupply Co",
+                "expiry_date": "2026-12-31",
+                "location": "pharmacy"
+            },
+            use_admin=True
+        )
+        
+        item_id = None
+        if success and 'item_id' in item_response:
+            item_id = item_response['item_id']
+        
+        # Test getting all inventory items
+        self.run_test(
+            "Get All Inventory Items",
+            "GET",
+            "admin/inventory",
+            200,
+            use_admin=True
+        )
+        
+        # Test getting inventory items by category
+        self.run_test(
+            "Get Inventory Items by Category",
+            "GET",
+            "admin/inventory?category=medicine",
+            200,
+            use_admin=True
+        )
+        
+        # Test updating inventory item
+        if item_id:
+            self.run_test(
+                "Update Inventory Item",
+                "PUT",
+                f"admin/inventory/{item_id}",
+                200,
+                data={"minimum_stock": 25},
+                use_admin=True
+            )
+        
+        # Test creating stock transaction
+        if item_id:
+            self.run_test(
+                "Create Stock Transaction - Purchase",
+                "POST",
+                f"admin/inventory/{item_id}/stock-transaction",
+                200,
+                data={
+                    "transaction_type": "purchase",
+                    "quantity": 50,
+                    "cost_per_unit": 2.40,
+                    "total_cost": 120.00,
+                    "notes": "Monthly stock replenishment"
+                },
+                use_admin=True
+            )
+            
+            self.run_test(
+                "Create Stock Transaction - Usage",
+                "POST",
+                f"admin/inventory/{item_id}/stock-transaction",
+                200,
+                data={
+                    "transaction_type": "usage",
+                    "quantity": 10,
+                    "notes": "Dispensed to patients"
+                },
+                use_admin=True
+            )
+        
+        # Test getting low stock items
+        self.run_test(
+            "Get Low Stock Items",
+            "GET",
+            "admin/inventory/low-stock",
+            200,
+            use_admin=True
+        )
+
+    def test_campaign_management_system(self):
+        """Test comprehensive campaign management system"""
+        print("\n=== CAMPAIGN MANAGEMENT SYSTEM TESTS ===")
+        
+        if not self.admin_token:
+            print("Skipping campaign tests - no admin token")
+            return
+        
+        # Test creating campaign
+        success, campaign_response = self.run_test(
+            "Create Campaign",
+            "POST",
+            "admin/campaigns",
+            200,
+            data={
+                "name": "New Year Health Checkup",
+                "description": "10% off on all lab tests during January",
+                "campaign_type": "discount",
+                "discount_percentage": 10.0,
+                "applicable_to": "lab_tests",
+                "applicable_items": [],
+                "start_date": "2025-01-01",
+                "end_date": "2025-01-31",
+                "is_active": True,
+                "usage_limit": 100
+            },
+            use_admin=True
+        )
+        
+        campaign_id = None
+        if success and 'campaign_id' in campaign_response:
+            campaign_id = campaign_response['campaign_id']
+        
+        # Test getting all campaigns (admin)
+        self.run_test(
+            "Get All Campaigns (Admin)",
+            "GET",
+            "admin/campaigns",
+            200,
+            use_admin=True
+        )
+        
+        # Test updating campaign
+        if campaign_id:
+            self.run_test(
+                "Update Campaign",
+                "PUT",
+                f"admin/campaigns/{campaign_id}",
+                200,
+                data={"discount_percentage": 15.0},
+                use_admin=True
+            )
+        
+        # Test getting active campaigns (public endpoint)
+        self.run_test(
+            "Get Active Campaigns (Public)",
+            "GET",
+            "campaigns/active",
+            200
+        )
+
+    def test_notification_system(self):
+        """Test comprehensive notification system"""
+        print("\n=== NOTIFICATION SYSTEM TESTS ===")
+        
+        if not self.admin_token:
+            print("Skipping notification tests - no admin token")
+            return
+        
+        # Test creating notification
+        self.run_test(
+            "Create Notification (Admin)",
+            "POST",
+            "admin/notifications",
+            200,
+            data={
+                "user_id": self.admin_user_id,
+                "title": "System Maintenance",
+                "message": "Scheduled maintenance tonight from 2-4 AM",
+                "notification_type": "system"
+            },
+            use_admin=True
+        )
+        
+        # Test getting notification statistics
+        self.run_test(
+            "Get Notification Stats",
+            "GET",
+            "admin/notifications/stats",
+            200,
+            use_admin=True
+        )
+        
+        # Test getting daily bookings (admin reminder system)
+        self.run_test(
+            "Get Daily Bookings",
+            "GET",
+            "admin/daily-bookings",
+            200,
+            use_admin=True
+        )
+        
+        # Test getting daily bookings for specific date
+        self.run_test(
+            "Get Daily Bookings for Date",
+            "GET",
+            "admin/daily-bookings?date=2025-01-20",
+            200,
+            use_admin=True
+        )
+        
+        # Test user notifications (if user token available)
+        if self.token:
+            success, notifications = self.run_test(
+                "Get My Notifications",
+                "GET",
+                "notifications/my",
+                200
+            )
+            
+            # Test marking notification as read (if notifications exist)
+            if success and notifications:
+                notification_id = notifications[0]['id']
+                self.run_test(
+                    "Mark Notification as Read",
+                    "PUT",
+                    f"notifications/{notification_id}/mark-read",
+                    200
+                )
+
+    def test_feedback_system(self):
+        """Test comprehensive feedback system"""
+        print("\n=== FEEDBACK SYSTEM TESTS ===")
+        
+        if not self.token:
+            print("Skipping feedback tests - no user token")
+            return
+        
+        # Get doctors for feedback
+        success, doctors = self.run_test("Get Doctors for Feedback", "GET", "doctors", 200)
+        if not success or not doctors:
+            print("No doctors found for feedback test")
+            return
+            
+        doctor_id = doctors[0]['id']
+        
+        # Test submitting feedback
+        self.run_test(
+            "Submit Feedback",
+            "POST",
+            "feedback",
+            200,
+            data={
+                "doctor_id": doctor_id,
+                "appointment_id": "test-appointment-123",
+                "rating": 5,
+                "comment": "Excellent service and very professional doctor",
+                "feedback_categories": {
+                    "professionalism": 5,
+                    "waiting_time": 4,
+                    "communication": 5,
+                    "cleanliness": 5
+                },
+                "is_anonymous": False
+            }
+        )
+        
+        # Test admin feedback endpoints
+        if self.admin_token:
+            # Test getting all feedback (admin)
+            self.run_test(
+                "Get All Feedback (Admin)",
+                "GET",
+                "admin/feedback",
+                200,
+                use_admin=True
+            )
+            
+            # Test getting feedback statistics
+            self.run_test(
+                "Get Feedback Stats (Admin)",
+                "GET",
+                "admin/feedback/stats",
+                200,
+                use_admin=True
+            )
+
     def test_user_profile(self):
         """Test user profile endpoint"""
         print("\n=== USER PROFILE TESTS ===")
