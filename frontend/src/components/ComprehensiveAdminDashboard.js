@@ -174,10 +174,12 @@ const ComprehensiveAdminDashboard = () => {
   const createScheduleTemplate = async () => {
     try {
       const response = await axios.post(`${API}/admin/doctor-schedule-template`, newScheduleTemplate);
+      const templateId = response.data.template_id;
+      
       alert('Schedule template created successfully!');
       
       // Automatically generate schedule for the next 30 days
-      if (newScheduleTemplate.doctor_id) {
+      if (newScheduleTemplate.doctor_id && templateId) {
         try {
           const startDate = new Date();
           const endDate = new Date();
@@ -185,15 +187,18 @@ const ComprehensiveAdminDashboard = () => {
           
           await axios.post(`${API}/admin/generate-doctor-schedule`, {
             doctor_id: newScheduleTemplate.doctor_id,
-            template_id: response.data.template_id || 'new-template',
+            template_id: templateId,
             start_date: startDate.toISOString().split('T')[0],
             end_date: endDate.toISOString().split('T')[0]
           });
           
           alert('Doctor schedule generated for next 30 days! Patients can now book appointments.');
+          
+          // Refresh data to show updated schedules
+          fetchData();
         } catch (scheduleError) {
           console.error('Schedule generation error:', scheduleError);
-          alert('Template created but automatic schedule generation failed. Please generate manually.');
+          alert('Template created but automatic schedule generation failed. Please try again.');
         }
       }
       
@@ -210,6 +215,39 @@ const ComprehensiveAdminDashboard = () => {
       });
     } catch (error) {
       alert('Error creating schedule template: ' + (error.response?.data?.detail || 'Something went wrong'));
+    }
+  };
+
+  const generateScheduleForDoctor = async (doctorId) => {
+    try {
+      // Get templates for this doctor
+      const templatesResponse = await axios.get(`${API}/admin/doctor-schedule-templates/${doctorId}`);
+      const templates = templatesResponse.data;
+      
+      if (templates.length === 0) {
+        alert('Please create a schedule template first for this doctor.');
+        return;
+      }
+      
+      // Use the first active template
+      const activeTemplate = templates.find(t => t.is_active) || templates[0];
+      
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(startDate.getDate() + 30);
+      
+      await axios.post(`${API}/admin/generate-doctor-schedule`, {
+        doctor_id: doctorId,
+        template_id: activeTemplate.id,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
+      });
+      
+      alert('Schedule generated successfully for next 30 days!');
+      fetchData(); // Refresh to show updated data
+      
+    } catch (error) {
+      alert('Error generating schedule: ' + (error.response?.data?.detail || 'Something went wrong'));
     }
   };
 
