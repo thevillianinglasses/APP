@@ -11,6 +11,7 @@ import AppointmentsPage from './components/AppointmentsPage';
 import MedicalRecordsPage from './components/MedicalRecordsPage';
 import ProfilePage from './components/ProfilePage';
 import AdminDashboard from './components/AdminDashboard';
+import ComprehensiveAdminDashboard from './components/ComprehensiveAdminDashboard';
 import FeedbackPage from './components/FeedbackPage';
 import NotificationCenter from './components/NotificationCenter';
 
