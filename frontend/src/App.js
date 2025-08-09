@@ -614,6 +614,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/feedback/:appointmentId"
+              element={
+                <ProtectedRoute>
+                  <FeedbackPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
