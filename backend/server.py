@@ -590,6 +590,323 @@ async def create_lab_package(package_data: dict, admin_user: dict = Depends(requ
     await db.lab_packages.insert_one(package.dict())
     return {"message": "Lab package created", "package_id": package.id}
 
+# Advanced Doctor Scheduling Routes
+@api_router.post("/admin/doctor-schedule-template")
+async def create_schedule_template(template_data: dict, admin_user: dict = Depends(require_admin)):
+    template = DoctorScheduleTemplate(**template_data)
+    await db.doctor_schedule_templates.insert_one(template.dict())
+    return {"message": "Schedule template created", "template_id": template.id}
+
+@api_router.get("/admin/doctor-schedule-templates/{doctor_id}")
+async def get_doctor_schedule_templates(doctor_id: str, admin_user: dict = Depends(require_admin)):
+    templates = await db.doctor_schedule_templates.find({"doctor_id": doctor_id}).to_list(1000)
+    return [serialize_doc(template) for template in templates]
+
+@api_router.put("/admin/doctor-schedule-template/{template_id}")
+async def update_schedule_template(template_id: str, template_data: dict, admin_user: dict = Depends(require_admin)):
+    await db.doctor_schedule_templates.update_one(
+        {"id": template_id},
+        {"$set": template_data}
+    )
+    return {"message": "Schedule template updated"}
+
+@api_router.post("/admin/generate-doctor-schedule")
+async def generate_doctor_schedule(generation_data: dict, admin_user: dict = Depends(require_admin)):
+    """Generate doctor schedule based on template for a date range"""
+    doctor_id = generation_data["doctor_id"]
+    template_id = generation_data["template_id"]
+    start_date = generation_data["start_date"]
+    end_date = generation_data["end_date"]
+    
+    # Get template
+    template = await db.doctor_schedule_templates.find_one({"id": template_id})
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    # Generate slots based on template
+    from datetime import datetime, timedelta
+    import calendar
+    
+    current_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+    
+    generated_slots = {}
+    
+    while current_date <= end_date_obj:
+        weekday = current_date.weekday()  # 0=Monday, 6=Sunday
+        
+        # Check if this day is in template
+        if weekday in template.get("days_of_week", []):
+            # Check for holidays
+            holiday = await db.holidays.find_one({"date": current_date.strftime("%Y-%m-%d")})
+            if holiday and not holiday.get("is_working_day", False):
+                current_date += timedelta(days=1)
+                continue
+                
+            # Check for doctor leave
+            leave = await db.doctor_leaves.find_one({
+                "doctor_id": doctor_id,
+                "start_date": {"$lte": current_date.strftime("%Y-%m-%d")},
+                "end_date": {"$gte": current_date.strftime("%Y-%m-%d")},
+                "status": "approved"
+            })
+            if leave:
+                current_date += timedelta(days=1)
+                continue
+            
+            # Generate time slots
+            start_time = datetime.strptime(template["start_time"], "%H:%M").time()
+            end_time = datetime.strptime(template["end_time"], "%H:%M").time()
+            slot_duration = template.get("slot_duration", 30)
+            
+            slots = []
+            current_time = datetime.combine(current_date.date(), start_time)
+            end_datetime = datetime.combine(current_date.date(), end_time)
+            
+            while current_time < end_datetime:
+                # Check if current time falls in break time
+                is_break = False
+                for break_time in template.get("break_times", []):
+                    break_start = datetime.strptime(break_time["start"], "%H:%M").time()
+                    break_end = datetime.strptime(break_time["end"], "%H:%M").time()
+                    if break_start <= current_time.time() < break_end:
+                        is_break = True
+                        break
+                
+                if not is_break:
+                    slots.append(current_time.strftime("%H:%M"))
+                
+                current_time += timedelta(minutes=slot_duration)
+            
+            generated_slots[current_date.strftime("%Y-%m-%d")] = slots
+        
+        current_date += timedelta(days=1)
+    
+    # Update doctor's schedule
+    await db.doctors.update_one(
+        {"id": doctor_id},
+        {"$set": {"schedule": generated_slots}}
+    )
+    
+    return {"message": "Doctor schedule generated successfully", "generated_dates": list(generated_slots.keys())}
+
+@api_router.post("/admin/doctor-leave")
+async def create_doctor_leave(leave_data: dict, admin_user: dict = Depends(require_admin)):
+    leave = DoctorLeave(**leave_data)
+    await db.doctor_leaves.insert_one(leave.dict())
+    return {"message": "Doctor leave created", "leave_id": leave.id}
+
+@api_router.get("/admin/doctor-leaves/{doctor_id}")
+async def get_doctor_leaves(doctor_id: str, admin_user: dict = Depends(require_admin)):
+    leaves = await db.doctor_leaves.find({"doctor_id": doctor_id}).to_list(1000)
+    return [serialize_doc(leave) for leave in leaves]
+
+@api_router.post("/admin/holidays")
+async def create_holiday(holiday_data: dict, admin_user: dict = Depends(require_admin)):
+    holiday = Holiday(**holiday_data)
+    await db.holidays.insert_one(holiday.dict())
+    return {"message": "Holiday created", "holiday_id": holiday.id}
+
+@api_router.get("/admin/holidays")
+async def get_holidays(admin_user: dict = Depends(require_admin)):
+    holidays = await db.holidays.find().to_list(1000)
+    return [serialize_doc(holiday) for holiday in holidays]
+
+# Inventory Management Routes
+@api_router.post("/admin/inventory")
+async def create_inventory_item(item_data: dict, admin_user: dict = Depends(require_admin)):
+    item = InventoryItem(**item_data)
+    await db.inventory_items.insert_one(item.dict())
+    return {"message": "Inventory item created", "item_id": item.id}
+
+@api_router.get("/admin/inventory")
+async def get_inventory_items(category: str = None, admin_user: dict = Depends(require_admin)):
+    query = {"category": category} if category else {}
+    items = await db.inventory_items.find(query).to_list(1000)
+    return [serialize_doc(item) for item in items]
+
+@api_router.put("/admin/inventory/{item_id}")
+async def update_inventory_item(item_id: str, item_data: dict, admin_user: dict = Depends(require_admin)):
+    item_data["last_updated"] = datetime.utcnow()
+    await db.inventory_items.update_one({"id": item_id}, {"$set": item_data})
+    return {"message": "Inventory item updated"}
+
+@api_router.post("/admin/inventory/{item_id}/stock-transaction")
+async def create_stock_transaction(item_id: str, transaction_data: dict, admin_user: dict = Depends(require_admin)):
+    # Create transaction record
+    transaction = StockTransaction(
+        inventory_item_id=item_id,
+        performed_by=admin_user["id"],
+        **transaction_data
+    )
+    await db.stock_transactions.insert_one(transaction.dict())
+    
+    # Update inventory stock
+    if transaction.transaction_type in ["purchase", "adjustment"]:
+        stock_change = transaction.quantity
+    elif transaction.transaction_type in ["usage", "expired"]:
+        stock_change = -transaction.quantity
+    else:
+        stock_change = 0
+    
+    await db.inventory_items.update_one(
+        {"id": item_id},
+        {
+            "$inc": {"current_stock": stock_change},
+            "$set": {"last_updated": datetime.utcnow()}
+        }
+    )
+    
+    return {"message": "Stock transaction recorded", "transaction_id": transaction.id}
+
+@api_router.get("/admin/inventory/low-stock")
+async def get_low_stock_items(admin_user: dict = Depends(require_admin)):
+    # Items where current_stock <= minimum_stock
+    pipeline = [
+        {"$match": {"$expr": {"$lte": ["$current_stock", "$minimum_stock"]}}},
+        {"$sort": {"current_stock": 1}}
+    ]
+    items = await db.inventory_items.aggregate(pipeline).to_list(1000)
+    return [serialize_doc(item) for item in items]
+
+# Campaign Management Routes
+@api_router.post("/admin/campaigns")
+async def create_campaign(campaign_data: dict, admin_user: dict = Depends(require_admin)):
+    campaign = Campaign(
+        created_by=admin_user["id"],
+        **campaign_data
+    )
+    await db.campaigns.insert_one(campaign.dict())
+    return {"message": "Campaign created", "campaign_id": campaign.id}
+
+@api_router.get("/admin/campaigns")
+async def get_campaigns(admin_user: dict = Depends(require_admin)):
+    campaigns = await db.campaigns.find().to_list(1000)
+    return [serialize_doc(campaign) for campaign in campaigns]
+
+@api_router.put("/admin/campaigns/{campaign_id}")
+async def update_campaign(campaign_id: str, campaign_data: dict, admin_user: dict = Depends(require_admin)):
+    await db.campaigns.update_one({"id": campaign_id}, {"$set": campaign_data})
+    return {"message": "Campaign updated"}
+
+@api_router.get("/campaigns/active")
+async def get_active_campaigns():
+    """Get active campaigns for patients to see"""
+    from datetime import datetime
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    
+    campaigns = await db.campaigns.find({
+        "is_active": True,
+        "start_date": {"$lte": today},
+        "end_date": {"$gte": today}
+    }).to_list(1000)
+    
+    return [serialize_doc(campaign) for campaign in campaigns]
+
+# Notification Routes
+@api_router.post("/admin/notifications")
+async def create_notification(notification_data: dict, admin_user: dict = Depends(require_admin)):
+    notification = Notification(**notification_data)
+    await db.notifications.insert_one(notification.dict())
+    return {"message": "Notification created", "notification_id": notification.id}
+
+@api_router.get("/notifications/my")
+async def get_my_notifications(current_user: dict = Depends(get_current_user)):
+    notifications = await db.notifications.find({
+        "user_id": current_user["id"]
+    }).sort("created_at", -1).to_list(50)
+    return [serialize_doc(notification) for notification in notifications]
+
+@api_router.put("/notifications/{notification_id}/mark-read")
+async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)):
+    await db.notifications.update_one(
+        {"id": notification_id, "user_id": current_user["id"]},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "Notification marked as read"}
+
+@api_router.get("/admin/notifications/stats")
+async def get_notification_stats(admin_user: dict = Depends(require_admin)):
+    """Get notification statistics for admin dashboard"""
+    total_notifications = await db.notifications.count_documents({})
+    unread_notifications = await db.notifications.count_documents({"is_read": False})
+    pending_sms = await db.notifications.count_documents({
+        "notification_type": "appointment",
+        "sent_at": None,
+        "scheduled_for": {"$lte": datetime.utcnow()}
+    })
+    
+    return {
+        "total_notifications": total_notifications,
+        "unread_notifications": unread_notifications,
+        "pending_sms": pending_sms
+    }
+
+# Feedback Routes  
+@api_router.post("/feedback")
+async def submit_feedback(feedback_data: dict, current_user: dict = Depends(get_current_user)):
+    feedback = Feedback(
+        patient_id=current_user["id"],
+        **feedback_data
+    )
+    await db.feedback.insert_one(feedback.dict())
+    return {"message": "Feedback submitted successfully", "feedback_id": feedback.id}
+
+@api_router.get("/admin/feedback")
+async def get_all_feedback(admin_user: dict = Depends(require_admin)):
+    feedback_list = await db.feedback.find().sort("created_at", -1).to_list(1000)
+    return [serialize_doc(feedback) for feedback in feedback_list]
+
+@api_router.get("/admin/feedback/stats")
+async def get_feedback_stats(admin_user: dict = Depends(require_admin)):
+    """Get feedback statistics for admin dashboard"""
+    pipeline = [
+        {"$group": {
+            "_id": "$doctor_id",
+            "average_rating": {"$avg": "$rating"},
+            "total_feedback": {"$sum": 1}
+        }},
+        {"$lookup": {
+            "from": "doctors",
+            "localField": "_id", 
+            "foreignField": "id",
+            "as": "doctor"
+        }},
+        {"$unwind": "$doctor"},
+        {"$project": {
+            "doctor_name": "$doctor.name",
+            "average_rating": {"$round": ["$average_rating", 2]},
+            "total_feedback": 1
+        }}
+    ]
+    
+    stats = await db.feedback.aggregate(pipeline).to_list(1000)
+    return stats
+
+# Daily Booking Reminders for Admin
+@api_router.get("/admin/daily-bookings")
+async def get_daily_bookings(date: str = None, admin_user: dict = Depends(require_admin)):
+    """Get all bookings for a specific date (default: today)"""
+    if not date:
+        date = datetime.utcnow().strftime("%Y-%m-%d")
+    
+    appointments = await db.appointments.find({"appointment_date": date}).to_list(1000)
+    
+    # Enrich with patient and doctor details
+    enriched_appointments = []
+    for appointment in appointments:
+        patient = await db.users.find_one({"id": appointment["patient_id"]})
+        doctor = await db.doctors.find_one({"id": appointment["doctor_id"]})
+        
+        enriched_appointments.append({
+            **serialize_doc(appointment),
+            "patient_name": patient.get("full_name") if patient else "Unknown",
+            "patient_phone": patient.get("phone") if patient else None,
+            "doctor_name": doctor.get("name") if doctor else "Unknown"
+        })
+    
+    return enriched_appointments
+
 # Include the router in the main app
 app.include_router(api_router)
 
