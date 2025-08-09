@@ -50,6 +50,15 @@ if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
 # Create the main app
 app = FastAPI(title="Unicare Polyclinic API", version="1.0.0")
 
+# Create uploads directory
+UPLOADS_DIR = Path("/app/backend/uploads")
+UPLOADS_DIR.mkdir(exist_ok=True)
+(UPLOADS_DIR / "patient_documents").mkdir(exist_ok=True)
+(UPLOADS_DIR / "profile_images").mkdir(exist_ok=True)
+
+# Mount static files for serving uploaded documents
+app.mount("/uploads", StaticFiles(directory="/app/backend/uploads"), name="uploads")
+
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
