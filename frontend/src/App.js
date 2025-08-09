@@ -613,7 +613,7 @@ function App() {
               path="/admin"
               element={
                 <ProtectedRoute adminOnly={true}>
-                  <AdminDashboard />
+                  <ComprehensiveAdminDashboard />
                 </ProtectedRoute>
               }
             />
