@@ -625,31 +625,81 @@ const ComprehensiveAdminDashboard = () => {
 
         {/* Advanced Scheduling Tab */}
         {activeTab === 'scheduling' && (
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="px-6 py-4 border-b flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">📅 Advanced Doctor Scheduling</h2>
-                <p className="text-gray-600">Create automated schedules visible to patients</p>
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-md">
+              <div className="px-6 py-4 border-b flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">📅 Advanced Doctor Scheduling</h2>
+                  <p className="text-gray-600">Create automated schedules visible to patients</p>
+                </div>
+                <button
+                  onClick={() => setScheduleModal(true)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                >
+                  🕒 Create Schedule Template
+                </button>
               </div>
-              <button
-                onClick={() => setScheduleModal(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-              >
-                🕒 Create Schedule Template
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <h3 className="font-medium text-blue-900 mb-2">💡 Scheduling Features:</h3>
-                <ul className="text-blue-800 text-sm space-y-1">
-                  <li>• Create weekly/daily schedule templates for each doctor</li>
-                  <li>• Set working hours, break times, and slot duration</li>
-                  <li>• Automatically generate available slots for patient booking</li>
-                  <li>• Handle holidays and doctor leave management</li>
-                  <li>• Patients can see and book available slots in real-time</li>
-                </ul>
+              <div className="p-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-medium text-blue-900 mb-2">💡 How Doctor Scheduling Works:</h3>
+                  <ul className="text-blue-800 text-sm space-y-1">
+                    <li>• Create a schedule template with working days, hours, and breaks</li>
+                    <li>• System automatically generates 30 days of available slots</li>
+                    <li>• Patients can see and book available time slots</li>
+                    <li>• Slots respect holidays and doctor leave automatically</li>
+                    <li>• System removes booked slots from availability</li>
+                  </ul>
+                </div>
+                
+                {/* Current Doctor Schedules */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Current Doctor Schedules</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {doctors.map((doctor) => {
+                      const availableDates = doctor.schedule ? Object.keys(doctor.schedule).length : 0;
+                      const todaySlots = doctor.schedule && doctor.schedule[selectedDate] ? doctor.schedule[selectedDate].length : 0;
+                      
+                      return (
+                        <div key={doctor.id} className="border rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-2">{doctor.name}</h4>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <p><span className="font-medium">Specialty:</span> {doctor.specialty}</p>
+                            <p><span className="font-medium">Available Dates:</span> {availableDates} days</p>
+                            <p><span className="font-medium">Today's Slots:</span> {todaySlots} slots</p>
+                            <p><span className="font-medium">Status:</span> 
+                              <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                                doctor.status === 'available' ? 'bg-green-100 text-green-800' :
+                                doctor.status === 'busy' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {doctor.status}
+                              </span>
+                            </p>
+                          </div>
+                          
+                          <div className="mt-3 space-y-2">
+                            <button
+                              onClick={() => {
+                                setNewScheduleTemplate({...newScheduleTemplate, doctor_id: doctor.id});
+                                setScheduleModal(true);
+                              }}
+                              className="w-full bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700"
+                            >
+                              🕒 Create/Update Schedule
+                            </button>
+                            
+                            {availableDates === 0 && (
+                              <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                                <p className="text-yellow-800 text-xs">⚠️ No schedule set. Patients cannot book.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-              <p className="text-gray-600">Use the "Create Schedule Template" button to set up automated scheduling for doctors.</p>
             </div>
           </div>
         )}
