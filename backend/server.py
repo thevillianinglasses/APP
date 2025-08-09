@@ -392,7 +392,7 @@ async def get_doctor(doctor_id: str):
     doctor = await db.doctors.find_one({"id": doctor_id})
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
-    return doctor
+    return serialize_doc(doctor)
 
 @api_router.put("/doctors/{doctor_id}/status")
 async def update_doctor_status(doctor_id: str, status_data: dict, admin_user: dict = Depends(require_admin)):
