@@ -726,6 +726,13 @@ const ComprehensiveAdminDashboard = () => {
                               🕒 Create/Update Schedule
                             </button>
                             
+                            <button
+                              onClick={() => generateScheduleForDoctor(doctor.id)}
+                              className="w-full bg-green-600 text-white py-2 px-3 rounded text-sm hover:bg-green-700"
+                            >
+                              ⚡ Generate 30-Day Schedule
+                            </button>
+                            
                             {availableDates === 0 && (
                               <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                                 <p className="text-yellow-800 text-xs">⚠️ No schedule set. Patients cannot book.</p>
