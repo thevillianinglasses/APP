@@ -410,6 +410,7 @@ const Dashboard = () => {
               <span className="ml-2 text-xl font-semibold text-gray-900">Unicare Polyclinic</span>
             </div>
             <div className="flex items-center space-x-4">
+              <NotificationCenter />
               <span className="text-gray-700">Welcome, {user?.full_name}</span>
               {user?.role === 'admin' && (
                 <button
