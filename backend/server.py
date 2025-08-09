@@ -472,7 +472,7 @@ async def get_my_medical_records(current_user: dict = Depends(get_current_user))
 @api_router.get("/admin/patients")
 async def get_patients(admin_user: dict = Depends(require_admin)):
     patients = await db.users.find({"role": "patient"}).to_list(1000)
-    return patients
+    return [serialize_doc(doc) for doc in patients]
 
 @api_router.put("/admin/patients/{patient_id}/approve")
 async def approve_patient(patient_id: str, admin_user: dict = Depends(require_admin)):
