@@ -13,9 +13,7 @@ from datetime import datetime, timedelta
 import hashlib
 import jwt
 import random
-import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+# Email imports removed for simplicity - using console logging for OTP
 import re
 
 ROOT_DIR = Path(__file__).parent
