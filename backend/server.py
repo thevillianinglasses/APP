@@ -388,7 +388,7 @@ async def verify_otp(otp_verify: OTPVerify):
 # User Routes
 @api_router.get("/users/profile")
 async def get_profile(current_user: dict = Depends(get_current_user)):
-    return current_user["user"]
+    return serialize_doc(current_user["user"])
 
 # Doctor Routes
 @api_router.get("/doctors")
