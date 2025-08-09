@@ -385,7 +385,7 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
 @api_router.get("/doctors")
 async def get_doctors():
     doctors = await db.doctors.find().to_list(1000)
-    return doctors
+    return [serialize_doc(doc) for doc in doctors]
 
 @api_router.get("/doctors/{doctor_id}")
 async def get_doctor(doctor_id: str):
