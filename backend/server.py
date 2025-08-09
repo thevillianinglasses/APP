@@ -208,6 +208,19 @@ class Feedback(BaseModel):
     is_anonymous: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+class PatientDocument(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    patient_id: str
+    document_type: str  # "opcard", "lab_result", "ecg_result", "prescription", "medical_report"
+    document_name: str
+    file_path: str
+    file_size: Optional[int] = None
+    mime_type: Optional[str] = None
+    uploaded_by: str  # admin user_id who uploaded
+    description: Optional[str] = None
+    appointment_id: Optional[str] = None  # Link to specific appointment if applicable
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class Medicine(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
