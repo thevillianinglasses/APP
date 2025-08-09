@@ -12,6 +12,7 @@ import MedicalRecordsPage from './components/MedicalRecordsPage';
 import ProfilePage from './components/ProfilePage';
 import AdminDashboard from './components/AdminDashboard';
 import FeedbackPage from './components/FeedbackPage';
+import NotificationCenter from './components/NotificationCenter';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
