@@ -681,7 +681,7 @@ async def create_lab_order(order_data: dict, current_user: dict = Depends(get_cu
 
 # Appointment Routes
 @api_router.post("/appointments")
-async def create_appointment(appointment_data: dict, current_user: dict = Depends(get_current_user)):
+async def create_appointment(appointment_data: dict, current_user: dict = Depends(get_current_user), background_tasks: BackgroundTasks = BackgroundTasks()):
     appointment = Appointment(
         patient_id=current_user["id"],
         doctor_id=appointment_data["doctor_id"],
@@ -690,6 +690,10 @@ async def create_appointment(appointment_data: dict, current_user: dict = Depend
         symptoms=appointment_data.get("symptoms")
     )
     await db.appointments.insert_one(appointment.dict())
+    
+    # Schedule notifications for this appointment
+    background_tasks.add_task(schedule_appointment_notifications, appointment.id)
+    
     return {"message": "Appointment scheduled", "appointment_id": appointment.id}
 
 @api_router.get("/appointments/my")
