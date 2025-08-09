@@ -422,12 +422,12 @@ async def create_medicine_order(order_data: dict, current_user: dict = Depends(g
 @api_router.get("/lab-tests")
 async def get_lab_tests():
     tests = await db.lab_tests.find().to_list(1000)
-    return tests
+    return [serialize_doc(doc) for doc in tests]
 
 @api_router.get("/lab-packages")
 async def get_lab_packages():
     packages = await db.lab_packages.find().to_list(1000)
-    return packages
+    return [serialize_doc(doc) for doc in packages]
 
 @api_router.post("/lab-tests/order")
 async def create_lab_order(order_data: dict, current_user: dict = Depends(get_current_user)):
