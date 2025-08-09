@@ -557,8 +557,63 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/doctors"
+              element={
+                <ProtectedRoute>
+                  <DoctorsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/medicines"
+              element={
+                <ProtectedRoute>
+                  <MedicinesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lab-tests"
+              element={
+                <ProtectedRoute>
+                  <LabTestsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/appointments"
+              element={
+                <ProtectedRoute>
+                  <AppointmentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/medical-records"
+              element={
+                <ProtectedRoute>
+                  <MedicalRecordsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute adminOnly={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            {/* Additional routes will be added here */}
           </Routes>
         </div>
       </Router>
