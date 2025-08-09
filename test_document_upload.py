@@ -73,9 +73,8 @@ def test_document_upload():
     }
     
     upload_response = requests.post(
-        f"{base_url}/admin/patients/{patient_id}/upload-document",
+        f"{base_url}/admin/patients/{patient_id}/upload-document?document_type=opcard&description=Test OP Card upload&appointment_id=test-appointment-123",
         files=files,
-        data=data,
         headers=headers
     )
     
