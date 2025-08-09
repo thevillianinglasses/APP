@@ -45,7 +45,7 @@ def test_document_upload():
     
     # Login as patient to get patient ID
     patient_login = requests.post(f"{base_url}/auth/login", json={
-        "email": "test_patient_doc@test.com",
+        "email": test_email,
         "password": "TestPass123!"
     })
     
